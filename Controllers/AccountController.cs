@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -25,6 +26,7 @@ namespace WebServices.Controllers
 
         [HttpPost]
         [Route("Register")]
+        [Produces("application/json")]
         public async Task<IActionResult> Register(RegisterModel model)
         {
             if (model == null)
@@ -37,24 +39,49 @@ namespace WebServices.Controllers
                 {
                     return BadRequest("Email already used");
                 }
+                if (!isEmailValid(model.Email))
+                {
+                    return BadRequest("Email not valid!");
+                }
                 var user = new User
                 {
+                    UserName = model.UserName,
                     Email = model.Email,
-                    PasswordHash = model.Password
                 };
-                var result = await _manager.CreateAsync(user);
+                var result = await _manager.CreateAsync(user, model.Password);
                 if (result.Succeeded)
                 {
-                    return StatusCode(StatusCodes.Status200OK);
+                    return StatusCode(StatusCodes.Status201Created, "User was created successfully");
+                }
+                else
+                {
+                    return BadRequest(result.Errors);
                 }
             }
             return StatusCode(StatusCodes.Status400BadRequest);
 
         }
 
+       
+        [HttpGet]
+        [Route("Login")]
+        [Produces("application/json")]
+        public IActionResult Login()
+        {
+            return StatusCode(StatusCodes.Status200OK, "login method");
+            
+        }
         private bool EmailExists(string email)
         {
             return _db.Users.Any(x => x.Email == email);
         }
+
+        private bool isEmailValid(string email)
+        {
+            Regex regexEmail = new Regex(@"\w+([-+.']\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*");
+            return regexEmail.IsMatch(email) ? true : false;
+        }
+       
+
     }
 }
