@@ -84,28 +84,22 @@ namespace WebServices.Controllers
         public async Task<IActionResult> Login(LoginModel model)
         {
             if (model == null)
-            {
                 return StatusCode(StatusCodes.Status404NotFound);
-
-            }
 
             var user = await _manager.FindByEmailAsync(model.Email);
             if (user == null)
-            {
                 return StatusCode(StatusCodes.Status404NotFound);
 
-            }
+            if (!user.EmailConfirmed)
+                return Unauthorized("Email not confirmed yet!");
 
-            var result = await _signInManager.PasswordSignInAsync(user, model.Password, model.RememberMe, false);
+            var result = await _signInManager.PasswordSignInAsync(user, model.Password, model.RememberMe, true);
             if (result.Succeeded)
-            {
                 return Ok("login success");
-            }
+            else if(result.IsLockedOut)
+                return BadRequest("You can not access to you account for the moment try after a while");
             else
-            {
                 return BadRequest(result.IsNotAllowed);
-            }
-            
         }
 
         [HttpGet]
