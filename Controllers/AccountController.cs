@@ -19,11 +19,13 @@ namespace WebServices.Controllers
     {
         private readonly ApplicationDbContext _db;
         private readonly UserManager<User> _manager;
+        private readonly SignInManager<User> _signInManager;
 
-        public AccountController(ApplicationDbContext db, UserManager<User> manager)
+        public AccountController(ApplicationDbContext db, UserManager<User> manager, SignInManager<User> signInManager)
         {
             _db = db;
             _manager = manager;
+            _signInManager = signInManager;
         }
 
         [HttpPost]
@@ -76,12 +78,33 @@ namespace WebServices.Controllers
         }
 
        
-        [HttpGet]
+        [HttpPost]
         [Route("Login")]
         [Produces("application/json")]
-        public IActionResult Login()
+        public async Task<IActionResult> Login(LoginModel model)
         {
-            return StatusCode(StatusCodes.Status200OK, "login method");
+            if (model == null)
+            {
+                return StatusCode(StatusCodes.Status404NotFound);
+
+            }
+
+            var user = await _manager.FindByEmailAsync(model.Email);
+            if (user == null)
+            {
+                return StatusCode(StatusCodes.Status404NotFound);
+
+            }
+
+            var result = await _signInManager.PasswordSignInAsync(user, model.Password, model.RememberMe, false);
+            if (result.Succeeded)
+            {
+                return Ok("login success");
+            }
+            else
+            {
+                return BadRequest(result.IsNotAllowed);
+            }
             
         }
 
