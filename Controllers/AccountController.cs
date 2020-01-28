@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Web;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using WebServices.Models;
 using WebServices.ModelViews;
+using WebServices.Services;
 
 namespace WebServices.Controllers
 {
@@ -51,7 +53,18 @@ namespace WebServices.Controllers
                 var result = await _manager.CreateAsync(user, model.Password);
                 if (result.Succeeded)
                 {
-                    return StatusCode(StatusCodes.Status201Created, "User was created successfully");
+                    var token = await _manager.GenerateEmailConfirmationTokenAsync(user);
+                    var confirmationLink = Url.Action("ConfirmRegister", "Account", new { Id = user.Id, Token = HttpUtility.UrlEncode(token) }, Request.Scheme);
+                    //return StatusCode(StatusCodes.Status201Created, "User was created successfully");
+                    var subject = "Registration confirm";
+                    var content = "Confirm your registration";
+                    var HTMLContent = "<a href=" + confirmationLink + ">Confirmation link</a>";
+                    if (await SendMailsApi.Execute(user.Email, user.UserName, subject, content, HTMLContent))
+                    {
+                        return Ok("An email of confirmation has sent to " + user.Email);
+
+                    }
+
                 }
                 else
                 {
@@ -71,6 +84,35 @@ namespace WebServices.Controllers
             return StatusCode(StatusCodes.Status200OK, "login method");
             
         }
+
+        [HttpGet]
+        [Route("ConfirmRegister")]
+        [Produces("application/json")]
+        public async Task<IActionResult> ConfirmRegister(string id, string token)
+        {
+            if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(token))
+            {
+                return NotFound();
+            }
+            var user = await _manager.FindByIdAsync(id);
+            if (user == null)
+            {
+                return NotFound();
+            }
+            var result = await _manager.ConfirmEmailAsync(user, HttpUtility.UrlDecode(token));
+            if (result.Succeeded)
+            {
+                return Ok("You are now confirm your registration");
+            }
+            else
+            {
+                 return BadRequest(result.Errors);
+            }
+        }
+
+        /**
+         * This is all functions we need
+         */
         private bool EmailExists(string email)
         {
             return _db.Users.Any(x => x.Email == email);
@@ -81,6 +123,8 @@ namespace WebServices.Controllers
             Regex regexEmail = new Regex(@"\w+([-+.']\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*");
             return regexEmail.IsMatch(email) ? true : false;
         }
+
+
        
 
     }
