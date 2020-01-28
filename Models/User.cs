@@ -8,5 +8,6 @@ namespace WebServices.Models
 {
     public class User : IdentityUser
     {
+        public string Country { get; set; }
     }
 }
